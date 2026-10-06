@@ -6,3 +6,7 @@
 //
 
 import Foundation
+
+enum AppImages {
+    static let bataLogo = "bata_logo"
+}
