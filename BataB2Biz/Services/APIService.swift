@@ -13,5 +13,7 @@ enum APIService {
     enum Endpoint {
         static let login = "/auth/login"
         static let register = "/auth/register"
+        static let home = "/home"
+        static let categoriesOverview = "/catalog/categories-overview"
     }
 }

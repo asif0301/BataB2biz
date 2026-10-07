@@ -86,6 +86,9 @@ struct LoginView: View {
             .scrollIndicators(.hidden)
             .background(AppColors.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $viewModel.loginSucceeded) {
+                MainTabView()
+            }
             .alert("Bata B2B", isPresented: $viewModel.showingMessage) {
                 Button("OK", role: .cancel) { }
             } message: {

@@ -1,8 +1,6 @@
 //
-//  HomeViewModel.swift
+//  CategoryViewModel.swift
 //  BataB2Biz
-//
-//  Created by Skynet Solutionz on 06/10/2026.
 //
 
 import Foundation
@@ -10,9 +8,9 @@ import Observation
 
 @Observable
 @MainActor
-final class HomeViewModel {
+final class CategoryViewModel {
     private let networkManager: NetworkManager
-    var home: HomeData?
+    var overview: CategoryOverviewData?
     var isLoading = false
     var errorMessage = ""
 
@@ -20,20 +18,25 @@ final class HomeViewModel {
         self.networkManager = networkManager
     }
 
-    func loadHome() {
+    func load(categoryCode: String = "all", search: String = "") {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = ""
 
+        var queryItems = [URLQueryItem(name: "category_code", value: categoryCode)]
+        if !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "search", value: search))
+        }
+
         Task { [weak self] in
             guard let self else { return }
             do {
-                let response: HomeResponse = try await networkManager.get(
-                    APIService.Endpoint.home,
-                    queryItems: [URLQueryItem(name: "view", value: "mobile")],
+                let response: CategoryOverviewResponse = try await networkManager.get(
+                    APIService.Endpoint.categoriesOverview,
+                    queryItems: queryItems,
                     accessToken: UserDefaults.standard.string(forKey: "bata.authToken")
                 )
-                home = response.data
+                overview = response.data
             } catch {
                 errorMessage = error.localizedDescription
             }

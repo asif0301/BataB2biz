@@ -80,6 +80,49 @@ final class NetworkManager {
         }
     }
 
+    func get<Response: Decodable>(
+        _ endpoint: String,
+        queryItems: [URLQueryItem] = [],
+        accessToken: String? = nil
+    ) async throws -> Response {
+        var components = URLComponents(
+            url: APIService.baseURL.appendingPathComponent(endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = queryItems
+
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let accessToken {
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError(message: "The server returned an invalid response.")
+            }
+            printDebugResponse(data: data, response: httpResponse, endpoint: endpoint)
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                throw APIError(message: errorMessage(from: data) ?? "Home data could not be loaded.")
+            }
+
+            do {
+                return try JSONDecoder().decode(Response.self, from: data)
+            } catch {
+                throw APIError(message: "The home response could not be read.")
+            }
+        } catch let error as APIError {
+            throw error
+        } catch is URLError {
+            throw APIError(message: "Unable to connect. Please check your internet connection.")
+        } catch {
+            throw APIError(message: error.localizedDescription)
+        }
+    }
+
     func postMultipart<Response: Decodable>(
         fields: [String: String],
         files: [MultipartFile],

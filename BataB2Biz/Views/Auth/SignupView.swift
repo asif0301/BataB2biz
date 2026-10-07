@@ -158,9 +158,11 @@ struct SignupView: View {
         .navigationBarBackButtonHidden(true)
         .confirmationDialog("Upload Document", isPresented: $showingUploadOptions, titleVisibility: .visible) {
             Button("Choose from Gallery") {
+                showingUploadOptions = false
                 showingPhotosPicker = true
             }
             Button("Take Photo") {
+                showingUploadOptions = false
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     showingCamera = true
                 } else {
@@ -168,6 +170,7 @@ struct SignupView: View {
                 }
             }
             Button("Choose File") {
+                showingUploadOptions = false
                 showingFileImporter = true
             }
             Button("Cancel", role: .cancel) { }
@@ -193,11 +196,11 @@ struct SignupView: View {
             .ignoresSafeArea()
         }
         .onChange(of: selectedPhoto) { _, item in
-            guard let item else { return }
+            guard let item, let target = uploadTarget else { return }
             Task {
                 let data = try? await item.loadTransferable(type: Data.self)
                 await MainActor.run {
-                    saveUpload(data: data, fileName: "gallery-image.jpg", for: uploadTarget)
+                    saveUpload(data: data, fileName: "gallery-image.jpg", for: target)
                     selectedPhoto = nil
                 }
             }
@@ -211,6 +214,7 @@ struct SignupView: View {
 
     private func prepareUpload(_ target: UploadTarget) {
         uploadTarget = target
+        selectedPhoto = nil
         showingUploadOptions = true
     }
 

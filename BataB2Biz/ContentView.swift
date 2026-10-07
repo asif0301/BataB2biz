@@ -8,8 +8,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("bata.authToken") private var authToken = ""
+    @AppStorage("bata.rememberMe") private var rememberMe = false
+
     var body: some View {
-        LoginView()
+        if rememberMe && !authToken.isEmpty {
+            MainTabView()
+        } else {
+            LoginView()
+        }
     }
 }
 

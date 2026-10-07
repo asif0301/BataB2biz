@@ -16,6 +16,7 @@ final class LoginViewModel {
     var password = ""
     var rememberMe = false
     var isLoading = false
+    var loginSucceeded = false
     var toastMessage = ""
     var toastIsSuccess = false
     var showingMessage = false
@@ -48,6 +49,8 @@ final class LoginViewModel {
 
                 UserDefaults.standard.set(data.token.value, forKey: "bata.authToken")
                 UserDefaults.standard.set(data.user.id, forKey: "bata.userId")
+                UserDefaults.standard.set(rememberMe, forKey: "bata.rememberMe")
+                loginSucceeded = true
                 showToast(response.message, isSuccess: true)
             } catch {
                 showToast(error.localizedDescription, isSuccess: false)
