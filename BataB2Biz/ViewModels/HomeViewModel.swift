@@ -20,13 +20,19 @@ final class HomeViewModel {
         self.networkManager = networkManager
     }
 
-    func loadHome() {
+    func loadHome(forceReload: Bool = false) {
         guard !isLoading else { return }
+        if forceReload {
+            home = nil
+        }
         isLoading = true
         errorMessage = ""
 
         Task { [weak self] in
             guard let self else { return }
+            if forceReload {
+                try? await Task.sleep(for: .milliseconds(450))
+            }
             do {
                 let response: HomeResponse = try await networkManager.get(
                     APIService.Endpoint.home,

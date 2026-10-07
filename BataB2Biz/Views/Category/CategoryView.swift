@@ -12,48 +12,118 @@ struct CategoryView: View {
     @State private var searchText = ""
     @State private var selectedCategoryCode = "all"
     @State private var selectedTab = AppTab.category
-
+//    @State private var selectedSubCategory: SubCategory?
+    @State private var navigationPath = NavigationPath()
+    
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                    searchField
-                    parentCategoryChips
+        NavigationStack(path: $navigationPath) {
+            VStack(spacing: 0) {
 
-                    if viewModel.isLoading && viewModel.overview == nil {
-                        CategoryLoadingView()
-                    } else if let overview = viewModel.overview {
-                        categoryGrid(overview.subCategories)
-                        brandsSection(overview.topBrands)
-                    } else if !viewModel.errorMessage.isEmpty {
-                        errorView
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+
+                        header
+                        searchField
+                        parentCategoryChips
+
+                        if viewModel.isLoading && viewModel.overview == nil {
+
+                            CategoryLoadingView()
+
+                        } else if let overview = viewModel.overview {
+
+                            categoryGrid(overview.subCategories)
+                            brandsSection(overview.topBrands)
+
+                        } else if !viewModel.errorMessage.isEmpty {
+
+                            errorView
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 15)
+                    .padding(.bottom, 20)
+                }
+                .scrollIndicators(.hidden)
+                .refreshable {
+                    viewModel.load(
+                        categoryCode: selectedCategoryCode,
+                        search: searchText
+                    )
+                }
+
+                if showsBottomBar {
+                    CustomBottomBar(selectedTab: $selectedTab) { tab in
+                        if tab == .home {
+                            dismiss()
+                        }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 15)
-                .padding(.bottom, 20)
             }
-            .scrollIndicators(.hidden)
-            .refreshable {
-                viewModel.load(categoryCode: selectedCategoryCode, search: searchText)
+            .background(AppColors.background.ignoresSafeArea())
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: SubCategory.self) { category in
+                ProductListView(
+                    title: category.name ?? "Products",
+                    categoryCode: category.categoryCode,
+                    subCategoryCode: category.subCategoryCode
+                )
             }
-
-            if showsBottomBar {
-                CustomBottomBar(selectedTab: $selectedTab) { tab in
-                    if tab == .home {
-                        dismiss()
-                    }
-                }
+            .task {
+                viewModel.load()
             }
-        }
-        .background(AppColors.background.ignoresSafeArea())
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-        .task {
-            viewModel.load()
         }
     }
+
+//    var body: some View {
+//        VStack(spacing: 0) {
+//            ScrollView {
+//                VStack(alignment: .leading, spacing: 0) {
+//                    header
+//                    searchField
+//                    parentCategoryChips
+//
+//                    if viewModel.isLoading && viewModel.overview == nil {
+//                        CategoryLoadingView()
+//                    } else if let overview = viewModel.overview {
+//                        categoryGrid(overview.subCategories)
+//                        brandsSection(overview.topBrands)
+//                    } else if !viewModel.errorMessage.isEmpty {
+//                        errorView
+//                    }
+//                }
+//                .padding(.horizontal, 20)
+//                .padding(.top, 15)
+//                .padding(.bottom, 20)
+//            }
+//            .scrollIndicators(.hidden)
+//            .refreshable {
+//                viewModel.load(categoryCode: selectedCategoryCode, search: searchText)
+//            }
+//
+//            if showsBottomBar {
+//                CustomBottomBar(selectedTab: $selectedTab) { tab in
+//                    if tab == .home {
+//                        dismiss()
+//                    }
+//                }
+//            }
+//        }
+//        .background(AppColors.background.ignoresSafeArea())
+//        .navigationBarBackButtonHidden(true)
+//        .toolbar(.hidden, for: .navigationBar)
+//        .navigationDestination(item: $selectedSubCategory) { category in
+//            ProductListView(
+//                title: category.name ?? "Products",
+//                categoryCode: category.categoryCode,
+//                subCategoryCode: category.subCategoryCode
+//            )
+//        }
+//        .task {
+//            viewModel.load()
+//        }
+//    }
 
     private var header: some View {
         HStack {
@@ -122,8 +192,13 @@ struct CategoryView: View {
     private func categoryGrid(_ categories: [SubCategory]) -> some View {
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
             ForEach(categories) { category in
-                CategoryCard(category: category)
+                CategoryCard(category: category) {
+                    navigationPath.append(category)
+                }
             }
+//            ForEach(categories) { category in
+//                CategoryCard(category: category) { selectedSubCategory = category }
+//            }
         }
     }
 
@@ -195,31 +270,35 @@ private struct CategoryLoadingView: View {
 
 private struct CategoryCard: View {
     let category: SubCategory
+    let onTap: () -> Void
 
     var body: some View {
-        VStack(spacing: 7) {
-            AsyncImage(url: URL(string: category.imageURL)) { image in
-                image.resizable().scaledToFit()
-            } placeholder: {
-                Image(systemName: "shoeprints.fill")
-                    .foregroundStyle(AppColors.subtitle)
-            }
-            .frame(width: 48, height: 48)
-            .background(Color(red: 1, green: 0.95, blue: 0.95))
-            .clipShape(Circle())
+        Button(action: onTap) {
+            VStack(spacing: 7) {
+                AsyncImage(url: URL(string: category.imageURL)) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    Image(systemName: "shoeprints.fill")
+                        .foregroundStyle(AppColors.subtitle)
+                }
+                .frame(width: 48, height: 48)
+                .background(Color(red: 1, green: 0.95, blue: 0.95))
+                .clipShape(Circle())
 
-            Text(category.name?.capitalized ?? "Category")
-                .montserrat(10, weight: .medium)
-                .foregroundStyle(AppColors.title)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+                Text(category.name?.capitalized ?? "Category")
+                    .montserrat(10, weight: .medium)
+                    .foregroundStyle(AppColors.title)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 92)
+            .padding(.vertical, 8)
+            .background(AppColors.background)
+            .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppColors.border, lineWidth: 1) }
+            .clipShape(RoundedRectangle(cornerRadius: 11))
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 92)
-        .padding(.vertical, 8)
-        .background(AppColors.background)
-        .overlay { RoundedRectangle(cornerRadius: 11).stroke(AppColors.border, lineWidth: 1) }
-        .clipShape(RoundedRectangle(cornerRadius: 11))
+        .buttonStyle(.plain)
     }
 }
 

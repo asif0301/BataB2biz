@@ -15,5 +15,8 @@ enum APIService {
         static let register = "/auth/register"
         static let home = "/home"
         static let categoriesOverview = "/catalog/categories-overview"
+        static let offers = "/get-offers"
+        static let profile = "/profile"
+        static let products = "/catalog/products"
     }
 }

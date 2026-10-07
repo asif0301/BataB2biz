@@ -52,7 +52,7 @@ struct HomeView: View {
             CategoryView()
         }
         .task {
-            viewModel.loadHome()
+            viewModel.loadHome(forceReload: true)
         }
     }
 

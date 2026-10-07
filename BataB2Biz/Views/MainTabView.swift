@@ -7,6 +7,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = AppTab.home
+    @State private var homeReloadID = UUID()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,23 +15,34 @@ struct MainTabView: View {
                 switch selectedTab {
                 case .home:
                     HomeView(showsBottomBar: false)
+                        .id(homeReloadID)
                 case .category:
                     CategoryView(showsBottomBar: false)
+                        .id(AppTab.category)
                 case .quickOrder:
                     PlaceholderTabView(title: "Quick Order", icon: "bolt.fill")
                 case .offers:
-                    PlaceholderTabView(title: "Offers", icon: "tag")
+                    OffersView(showsBottomBar: false)
                 case .profile:
-                    PlaceholderTabView(title: "Profile", icon: "person")
+                    ProfileView(showsBottomBar: false)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            CustomBottomBar(selectedTab: $selectedTab)
+            CustomBottomBar(selectedTab: $selectedTab) { tab in
+                if tab == .home {
+                    homeReloadID = UUID()
+                }
+            }
         }
         .background(AppColors.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .home {
+                homeReloadID = UUID()
+            }
+        }
     }
 }
 

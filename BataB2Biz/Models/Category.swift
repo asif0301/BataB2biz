@@ -32,8 +32,8 @@ struct ParentCategory: Decodable, Identifiable {
 
     var id: String { code }
 }
+struct SubCategory: Decodable, Identifiable, Hashable {
 
-struct SubCategory: Decodable, Identifiable {
     let id: String
     let name: String?
     let subCategoryCode: String
@@ -47,6 +47,21 @@ struct SubCategory: Decodable, Identifiable {
         case imageURL = "image_url"
     }
 }
+
+//struct SubCategory: Decodable, Identifiable {
+//    let id: String
+//    let name: String?
+//    let subCategoryCode: String
+//    let categoryCode: String
+//    let imageURL: String
+//
+//    enum CodingKeys: String, CodingKey {
+//        case id, name
+//        case subCategoryCode = "sub_cat_code"
+//        case categoryCode = "category_code"
+//        case imageURL = "image_url"
+//    }
+//}
 
 struct TopBrand: Decodable, Identifiable {
     let id: Int

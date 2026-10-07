@@ -3,9 +3,9 @@ import Observation
 
 @Observable
 @MainActor
-final class ProfileViewModel {
+final class OffersViewModel {
     private let networkManager: NetworkManager
-    var profile: ProfileData?
+    var data: OffersData?
     var isLoading = false
     var errorMessage = ""
 
@@ -13,18 +13,20 @@ final class ProfileViewModel {
         self.networkManager = networkManager
     }
 
-    func loadProfile() {
+    func loadOffers(forceReload: Bool = false) {
         guard !isLoading else { return }
+        if forceReload { data = nil }
         isLoading = true
         errorMessage = ""
+
         Task { [weak self] in
             guard let self else { return }
             do {
-                let response: ProfileResponse = try await networkManager.get(
-                    APIService.Endpoint.profile,
+                let response: OffersResponse = try await networkManager.get(
+                    APIService.Endpoint.offers,
                     accessToken: UserDefaults.standard.string(forKey: "bata.authToken")
                 )
-                profile = response.data
+                data = response.data
             } catch {
                 errorMessage = error.localizedDescription
             }
