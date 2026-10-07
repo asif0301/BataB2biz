@@ -19,9 +19,30 @@ struct CatalogProductsData: Decodable {
 
 struct CatalogFiltersData: Decodable {
     let quickPills: [CatalogQuickPill]
+    let subCategories: [CatalogFilterOption]
+    let brands: [CatalogFilterOption]
 
     enum CodingKeys: String, CodingKey {
         case quickPills = "quick_pills"
+        case subCategories = "sub_categories"
+        case brands
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        quickPills = try container.decodeIfPresent([CatalogQuickPill].self, forKey: .quickPills) ?? []
+        subCategories = try container.decodeIfPresent([CatalogFilterOption].self, forKey: .subCategories) ?? []
+        brands = try container.decodeIfPresent([CatalogFilterOption].self, forKey: .brands) ?? []
+    }
+}
+
+struct CatalogFilterOption: Decodable, Identifiable {
+    let code: String
+    let name: String?
+    var id: String { code }
+
+    enum CodingKeys: String, CodingKey {
+        case code, name
     }
 }
 

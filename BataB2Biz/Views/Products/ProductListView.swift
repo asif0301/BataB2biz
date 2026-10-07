@@ -6,6 +6,7 @@ struct ProductListView: View {
     let subCategoryCode: String
     @State private var viewModel: ProductViewModel
     @State private var favouriteIDs = Set<Int>()
+    @State private var showingFilters = false
     @Environment(\.dismiss) private var dismiss
 
     init(title: String = "Products", categoryCode: String = "all", subCategoryCode: String = "all") {
@@ -40,6 +41,10 @@ struct ProductListView: View {
         .background(AppColors.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showingFilters) {
+            ProductFilterSheet(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
+        }
         .task { viewModel.loadProducts() }
     }
 
@@ -72,10 +77,11 @@ struct ProductListView: View {
                 TextField("Search Article / brand", text: $viewModel.searchText)
                     .montserrat(15)
                     .submitLabel(.search)
+                    .onChange(of: viewModel.searchText) { _, _ in viewModel.searchChanged() }
                     .onSubmit { viewModel.loadProducts() }
             }
             .padding(.horizontal, 14)
-            .frame(height: 58)
+            .frame(height: 45)
             .overlay { RoundedRectangle(cornerRadius: 17).stroke(AppColors.border, lineWidth: 1) }
 
             Button { viewModel.toggleSort() } label: {
@@ -86,7 +92,7 @@ struct ProductListView: View {
             }
             .buttonStyle(.plain)
 
-            Button { } label: {
+            Button { showingFilters = true } label: {
                 Image(systemName: "line.3.horizontal.decrease")
                     .font(.system(size: 23, weight: .medium))
                     .foregroundStyle(.white)
@@ -110,8 +116,28 @@ struct ProductListView: View {
                             .montserrat(14, weight: viewModel.selectedPill == pill.value ? .semibold : .regular)
                             .foregroundStyle(viewModel.selectedPill == pill.value ? .white : AppColors.title)
                             .padding(.horizontal, 22)
-                            .frame(height: 54)
+                            .frame(height: 45)
                             .background(viewModel.selectedPill == pill.value ? AppColors.primary : AppColors.surface)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                ForEach(viewModel.subCategories) { category in
+                    let isSelected = viewModel.selectedPill == category.code
+                    Button {
+                        viewModel.applyFilter(
+                            brand: nil,
+                            subCategory: isSelected ? nil : category.code,
+                            minimumPrice: viewModel.activePriceMin,
+                            maximumPrice: viewModel.activePriceMax
+                        )
+                    } label: {
+                        Text(category.name?.capitalized ?? category.code)
+                            .montserrat(12, weight: isSelected ? .semibold : .regular)
+                            .foregroundStyle(isSelected ? .white : AppColors.title)
+                            .padding(.horizontal, 16)
+                            .frame(height: 45)
+                            .background(isSelected ? AppColors.primary : AppColors.surface)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -230,3 +256,65 @@ private extension Double {
 }
 
 #Preview { ProductListView(title: "Men Dress Shoes") }
+
+private struct ProductFilterSheet: View {
+    let viewModel: ProductViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var brand = ""
+    @State private var subCategory = ""
+    @State private var minimumPrice = ""
+    @State private var maximumPrice = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Category") {
+                    Picker("Sub Category", selection: $subCategory) {
+                        Text("All").tag("")
+                        ForEach(viewModel.subCategories) { option in
+                            Text(option.name ?? option.code).tag(option.code)
+                        }
+                    }
+                }
+                Section("Brand") {
+                    Picker("Brand", selection: $brand) {
+                        Text("All").tag("")
+                        ForEach(viewModel.brands) { option in
+                            Text(option.name ?? option.code).tag(option.code)
+                        }
+                    }
+                }
+                Section("Price Range") {
+                    TextField("Minimum price", text: $minimumPrice).keyboardType(.numberPad)
+                    TextField("Maximum price", text: $maximumPrice).keyboardType(.numberPad)
+                }
+            }
+            .navigationTitle("Filters")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Clear") {
+                        brand = ""
+                        subCategory = ""
+                        minimumPrice = ""
+                        maximumPrice = ""
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        viewModel.applyFilter(
+                            brand: brand.isEmpty ? nil : brand,
+                            subCategory: subCategory.isEmpty ? nil : subCategory,
+                            minimumPrice: Int(minimumPrice),
+                            maximumPrice: Int(maximumPrice)
+                        )
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            subCategory = viewModel.subCategories.first(where: { $0.code == viewModel.selectedPill })?.code ?? ""
+            brand = viewModel.brands.first(where: { $0.code == viewModel.selectedPill })?.code ?? ""
+        }
+    }
+}
