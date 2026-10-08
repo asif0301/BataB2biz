@@ -18,5 +18,14 @@ enum APIService {
         static let offers = "/get-offers"
         static let profile = "/profile"
         static let products = "/catalog/products"
+        static let cartItems = "/cart/items"
+        static let cart = "/cart"
+        static let clearCart = "/cart/clear"
+
+        static func cartItem(_ cartItemID: Int) -> String { "/cart/items/\(cartItemID)" }
+
+        static func productDetail(_ productID: Int) -> String {
+            "/catalog/products/\(productID)"
+        }
     }
 }

@@ -70,6 +70,9 @@ struct CategoryView: View {
                     subCategoryCode: category.subCategoryCode
                 )
             }
+            .navigationDestination(for: TopBrand.self) { brand in
+                ProductListView(title: brand.name, categoryCode: "all", brandCode: brand.code)
+            }
             .task {
                 viewModel.load()
             }
@@ -212,14 +215,17 @@ struct CategoryView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ForEach(brands) { brand in
-                        Text(brand.name.capitalized)
-                            .montserrat(12, weight: .semibold)
-                            .foregroundStyle(AppColors.title)
-                            .padding(.horizontal, 12)
-                            .frame(height: 30)
-                            .background(AppColors.background)
-                            .overlay { RoundedRectangle(cornerRadius: 7).stroke(AppColors.border, lineWidth: 1) }
-                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                        Button { navigationPath.append(brand) } label: {
+                            Text(brand.name.capitalized)
+                                .montserrat(12, weight: .semibold)
+                                .foregroundStyle(AppColors.title)
+                                .padding(.horizontal, 12)
+                                .frame(height: 30)
+                                .background(AppColors.background)
+                                .overlay { RoundedRectangle(cornerRadius: 7).stroke(AppColors.border, lineWidth: 1) }
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

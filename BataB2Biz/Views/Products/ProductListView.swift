@@ -4,39 +4,50 @@ struct ProductListView: View {
     let title: String
     let categoryCode: String
     let subCategoryCode: String
+    let brandCode: String?
     @State private var viewModel: ProductViewModel
     @State private var favouriteIDs = Set<Int>()
     @State private var showingFilters = false
+    @State private var selectedProductID: Int?
     @Environment(\.dismiss) private var dismiss
 
-    init(title: String = "Products", categoryCode: String = "all", subCategoryCode: String = "all") {
+    init(title: String = "Products", categoryCode: String = "all", subCategoryCode: String = "all", brandCode: String? = nil) {
         self.title = title
         self.categoryCode = categoryCode
         self.subCategoryCode = subCategoryCode
-        _viewModel = State(initialValue: ProductViewModel(categoryCode: categoryCode, subCategoryCode: subCategoryCode))
+        self.brandCode = brandCode
+        _viewModel = State(initialValue: ProductViewModel(categoryCode: categoryCode, subCategoryCode: subCategoryCode, brandCode: brandCode))
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                    controls
-                    pills
-                    if viewModel.isLoading && viewModel.products.isEmpty {
-                        ProductListLoadingView()
-                    } else if !viewModel.products.isEmpty {
-                        productGrid
-                    } else if !viewModel.errorMessage.isEmpty {
-                        errorView
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 14)
-                .padding(.bottom, 24)
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                controls
+                pills
             }
-            .scrollIndicators(.hidden)
-            .refreshable { viewModel.loadProducts() }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+
+            if viewModel.isLoading && viewModel.products.isEmpty {
+                ScrollView {
+                    ProductListLoadingView()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
+                        .padding(.bottom, 24)
+                }
+                .scrollIndicators(.hidden)
+            } else if !viewModel.products.isEmpty {
+                ScrollView {
+                    productGrid
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
+                }
+                .scrollIndicators(.hidden)
+                .refreshable { viewModel.loadProducts() }
+            } else if !viewModel.errorMessage.isEmpty {
+                errorView
+            }
         }
         .background(AppColors.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
@@ -44,6 +55,9 @@ struct ProductListView: View {
         .sheet(isPresented: $showingFilters) {
             ProductFilterSheet(viewModel: viewModel)
                 .presentationDetents([.medium, .large])
+        }
+        .navigationDestination(item: $selectedProductID) { productID in
+            ProductDetailView(productID: productID)
         }
         .task { viewModel.loadProducts() }
     }
@@ -122,21 +136,43 @@ struct ProductListView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                ForEach(viewModel.subCategories) { category in
-                    let isSelected = viewModel.selectedPill == category.code
+                if viewModel.initialBrandCode == nil {
+                    ForEach(viewModel.subCategories) { category in
+                        let isSelected = viewModel.selectedPill == category.code
+                        Button {
+                            viewModel.applyFilter(
+                                brand: nil,
+                                subCategory: isSelected ? nil : category.code,
+                                minimumPrice: viewModel.activePriceMin,
+                                maximumPrice: viewModel.activePriceMax
+                            )
+                        } label: {
+                            Text(category.name?.capitalized ?? category.code)
+                                .montserrat(12, weight: isSelected ? .semibold : .regular)
+                                .foregroundStyle(isSelected ? .white : AppColors.title)
+                                .padding(.horizontal, 16)
+                                .frame(height: 45)
+                                .background(isSelected ? AppColors.primary : AppColors.surface)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                ForEach(viewModel.brands) { brand in
+                    let isSelected = viewModel.selectedPill == brand.code
                     Button {
                         viewModel.applyFilter(
-                            brand: nil,
-                            subCategory: isSelected ? nil : category.code,
+                            brand: isSelected ? nil : brand.code,
+                            subCategory: nil,
                             minimumPrice: viewModel.activePriceMin,
                             maximumPrice: viewModel.activePriceMax
                         )
                     } label: {
-                        Text(category.name?.capitalized ?? category.code)
+                        Text(brand.name?.capitalized ?? brand.code)
                             .montserrat(12, weight: isSelected ? .semibold : .regular)
                             .foregroundStyle(isSelected ? .white : AppColors.title)
                             .padding(.horizontal, 16)
-                            .frame(height: 45)
+                            .frame(height: 40)
                             .background(isSelected ? AppColors.primary : AppColors.surface)
                             .clipShape(Capsule())
                     }
@@ -154,6 +190,7 @@ struct ProductListView: View {
                 CatalogProductCard(product: product, isFavourite: favouriteIDs.contains(product.id) || product.isFavourite == true) {
                     if favouriteIDs.contains(product.id) { favouriteIDs.remove(product.id) } else { favouriteIDs.insert(product.id) }
                 }
+                .onTapGesture { selectedProductID = product.id }
                 .onAppear {
                     if product.id == viewModel.products.last?.id { viewModel.loadProducts(reset: false) }
                 }
@@ -162,6 +199,7 @@ struct ProductListView: View {
                 ProgressView().gridCellColumns(2).padding()
             }
         }
+        .padding(.top, 4)
     }
 
     private var errorView: some View {
@@ -260,61 +298,169 @@ private extension Double {
 private struct ProductFilterSheet: View {
     let viewModel: ProductViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var category = "all"
     @State private var brand = ""
     @State private var subCategory = ""
-    @State private var minimumPrice = ""
-    @State private var maximumPrice = ""
+    @State private var minimumPrice = 0.0
+    @State private var maximumPrice = 0.0
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Category") {
-                    Picker("Sub Category", selection: $subCategory) {
-                        Text("All").tag("")
-                        ForEach(viewModel.subCategories) { option in
-                            Text(option.name ?? option.code).tag(option.code)
-                        }
-                    }
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Filter Products")
+                    .montserrat(22, weight: .bold)
+                    .foregroundStyle(AppColors.title)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+
+                ScrollView {
+                    categorySection
+                    subCategorySection
+                    brandSection
+                    priceSection
                 }
-                Section("Brand") {
-                    Picker("Brand", selection: $brand) {
-                        Text("All").tag("")
-                        ForEach(viewModel.brands) { option in
-                            Text(option.name ?? option.code).tag(option.code)
-                        }
-                    }
-                }
-                Section("Price Range") {
-                    TextField("Minimum price", text: $minimumPrice).keyboardType(.numberPad)
-                    TextField("Maximum price", text: $maximumPrice).keyboardType(.numberPad)
-                }
-            }
-            .navigationTitle("Filters")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear") {
+
+                HStack(spacing: 12) {
+                    Button("Clear All") {
+                        category = "all"
                         brand = ""
                         subCategory = ""
-                        minimumPrice = ""
-                        maximumPrice = ""
+                        minimumPrice = bounds.minPrice
+                        maximumPrice = bounds.maxPrice
                     }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Apply") {
+                    .montserrat(15, weight: .bold)
+                    .foregroundStyle(AppColors.primary)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .overlay { RoundedRectangle(cornerRadius: 14).stroke(AppColors.primary, lineWidth: 1) }
+
+                    Button("Apply Filters") {
                         viewModel.applyFilter(
+                            categoryCode: category,
                             brand: brand.isEmpty ? nil : brand,
                             subCategory: subCategory.isEmpty ? nil : subCategory,
-                            minimumPrice: Int(minimumPrice),
-                            maximumPrice: Int(maximumPrice)
+                            minimumPrice: Int(minimumPrice) > Int(bounds.minPrice) ? Int(minimumPrice) : nil,
+                            maximumPrice: Int(maximumPrice) < Int(bounds.maxPrice) ? Int(maximumPrice) : nil
                         )
                         dismiss()
                     }
+                    .montserrat(15, weight: .bold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(AppColors.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+            }
+            .background(AppColors.background)
+        }
+        .onAppear {
+            category = viewModel.activeCategoryCode
+            subCategory = viewModel.activeSubCategory ?? ""
+            brand = viewModel.activeBrand ?? ""
+            minimumPrice = bounds.minPrice
+            maximumPrice = bounds.maxPrice
+        }
+    }
+
+    private var bounds: (minPrice: Double, maxPrice: Double) {
+        let bounds = viewModel.dataBounds
+        return (bounds.minPrice, max(bounds.maxPrice, bounds.minPrice + 1))
+    }
+
+    private var priceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Price Range").montserrat(21, weight: .bold).foregroundStyle(AppColors.title)
+            Slider(value: $minimumPrice, in: bounds.minPrice...maximumPrice)
+                .tint(AppColors.primary)
+            Slider(value: $maximumPrice, in: minimumPrice...bounds.maxPrice)
+                .tint(AppColors.primary)
+            HStack {
+                Text("Rs \(minimumPrice.cleanValue)")
+                Spacer()
+                Text("Rs \(maximumPrice.cleanValue)")
+            }
+            .montserrat(13)
+            .foregroundStyle(AppColors.subtitle)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .padding(.bottom, 12)
+    }
+
+    private var categorySection: some View {
+        FilterOptionsSection(title: "Category", options: viewModel.categories, selection: $category, emptyValue: "all") {
+            subCategory = ""
+        }
+    }
+
+    private var subCategorySection: some View {
+        let selectedCategory = category.lowercased()
+        let visibleOptions = viewModel.subCategories.filter { option in
+            selectedCategory.isEmpty || selectedCategory == "all" || option.categoryCode?.lowercased() == selectedCategory
+        }
+        return FilterOptionsSection(title: "Sub Category", options: visibleOptions, selection: $subCategory, emptyValue: "")
+    }
+
+    private var brandSection: some View {
+        FilterOptionsSection(title: "Brand", options: viewModel.brands, selection: $brand, emptyValue: "")
+    }
+}
+
+private struct FilterOptionsSection: View {
+    let title: String
+    let options: [CatalogFilterOption]
+    @Binding var selection: String
+    let emptyValue: String
+    let onSelectionChanged: () -> Void
+
+    init(title: String, options: [CatalogFilterOption], selection: Binding<String>, emptyValue: String, onSelectionChanged: @escaping () -> Void = {}) {
+        self.title = title
+        self.options = options
+        self._selection = selection
+        self.emptyValue = emptyValue
+        self.onSelectionChanged = onSelectionChanged
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .montserrat(21, weight: .bold)
+                .foregroundStyle(AppColors.title)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
+                FilterChip(title: "All", isSelected: selection == emptyValue) {
+                    selection = emptyValue
+                    onSelectionChanged()
+                }
+                ForEach(options) { option in
+                    FilterChip(title: option.name ?? option.code, isSelected: selection == option.code) {
+                        selection = option.code
+                        onSelectionChanged()
+                    }
                 }
             }
         }
-        .onAppear {
-            subCategory = viewModel.subCategories.first(where: { $0.code == viewModel.selectedPill })?.code ?? ""
-            brand = viewModel.brands.first(where: { $0.code == viewModel.selectedPill })?.code ?? ""
+        .padding(.horizontal, 20)
+        .padding(.top, 22)
+    }
+}
+
+private struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title.uppercased())
+                .montserrat(13)
+                .foregroundStyle(isSelected ? .white : AppColors.subtitle)
+                .padding(.horizontal, 15)
+                .frame(minHeight: 42)
+                .background(isSelected ? AppColors.primary : AppColors.background)
+                .overlay { RoundedRectangle(cornerRadius: 22).stroke(isSelected ? AppColors.primary : AppColors.border, lineWidth: 1) }
+                .clipShape(Capsule())
         }
+        .buttonStyle(.plain)
     }
 }

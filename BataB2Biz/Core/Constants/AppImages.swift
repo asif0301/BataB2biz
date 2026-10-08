@@ -13,4 +13,5 @@ enum AppImages {
     static let payment = "payment_image"
     static let order = "order_image"
     static let track = "track_image"
+    static let emptyCart = "empty_cart_icon"
 }

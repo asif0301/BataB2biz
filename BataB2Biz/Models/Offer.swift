@@ -50,6 +50,8 @@ struct OfferProduct: Decodable, Identifiable {
     let title: String
     let article: String?
     let brand: String?
+    let code: String?
+    let packCodeID: String?
     let isFavourite: Bool?
     let discount: OfferDiscount?
     let badges: OfferBadges?
@@ -58,7 +60,8 @@ struct OfferProduct: Decodable, Identifiable {
     let categories: ProductCategories?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, article, brand, discount, badges, pricing, media, categories
+        case id, title, article, brand, code, discount, badges, pricing, media, categories
+        case packCodeID = "pack_code_id"
         case isFavourite = "is_favourite"
     }
 }
@@ -110,5 +113,6 @@ struct ProductCategories: Decodable {
 }
 
 struct ProductCategory: Decodable {
+    let code: String?
     let name: String
 }

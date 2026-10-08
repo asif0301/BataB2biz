@@ -123,6 +123,33 @@ final class NetworkManager {
         }
     }
 
+    func delete<Response: Decodable>(
+        _ endpoint: String,
+        accessToken: String? = nil
+    ) async throws -> Response {
+        let url = APIService.baseURL.appendingPathComponent(endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let accessToken { request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization") }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError(message: "The server returned an invalid response.") }
+            printDebugResponse(data: data, response: httpResponse, endpoint: endpoint)
+            guard (200...299).contains(httpResponse.statusCode) else {
+                throw APIError(message: errorMessage(from: data) ?? "The request could not be completed.")
+            }
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch let error as APIError {
+            throw error
+        } catch is URLError {
+            throw APIError(message: "Unable to connect. Please check your internet connection.")
+        } catch {
+            throw APIError(message: error.localizedDescription)
+        }
+    }
+
     func postMultipart<Response: Decodable>(
         fields: [String: String],
         files: [MultipartFile],
