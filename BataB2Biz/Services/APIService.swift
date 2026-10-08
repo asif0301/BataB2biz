@@ -20,6 +20,12 @@ enum APIService {
         static let products = "/catalog/products"
         static let cartItems = "/cart/items"
         static let cart = "/cart"
+        static let checkout = "/checkout"
+        static let checkoutPayLater = "/checkout/pay-later"
+        static let orders = "/my-orders"
+
+        static func orderDetail(_ orderID: Int) -> String { "/my-orders/\(orderID)" }
+        static func depositSlip(_ orderID: Int) -> String { "/my-orders/\(orderID)/deposit-slip" }
         static let clearCart = "/cart/clear"
 
         static func cartItem(_ cartItemID: Int) -> String { "/cart/items/\(cartItemID)" }

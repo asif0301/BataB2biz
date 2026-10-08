@@ -10,6 +10,8 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var selectedTab = AppTab.home
     @State private var showingCategory = false
+    @State private var showingCart = false
+    @State private var showingOrders = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +52,12 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $showingCategory) {
             CategoryView()
+        }
+        .navigationDestination(isPresented: $showingCart) {
+            CartView()
+        }
+        .navigationDestination(isPresented: $showingOrders) {
+            OrdersView()
         }
         .task {
             viewModel.loadHome(forceReload: true)
@@ -186,7 +194,13 @@ struct HomeView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(actions) { action in
-                    QuickActionCard(action: action)
+                    QuickActionCard(action: action) {
+                        if action.key == "cart" {
+                            showingCart = true
+                        } else if action.key == "orders" {
+                            showingOrders = true
+                        }
+                    }
                 }
             }
         }
@@ -223,9 +237,11 @@ struct HomeView: View {
 
 private struct QuickActionCard: View {
     let action: QuickAction
+    let onTap: () -> Void
 
     var body: some View {
-        ZStack {
+        Button(action: onTap) {
+            ZStack {
             Image(imageName)
                 .resizable()
                 .scaledToFill()
@@ -264,7 +280,9 @@ private struct QuickActionCard: View {
                     .foregroundStyle(.white.opacity(0.90))
             }
             .padding(11)
+            }
         }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }

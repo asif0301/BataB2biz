@@ -3,6 +3,7 @@ import SwiftUI
 struct CartView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = CartViewModel()
+    @State private var showingCheckout = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,6 +23,9 @@ struct CartView: View {
         .background(AppColors.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $showingCheckout) {
+            CheckoutView()
+        }
         .task { viewModel.load() }
     }
 
@@ -82,7 +86,7 @@ struct CartView: View {
     }
 
     private func checkoutButton(_ summary: CartSummary) -> some View {
-        Button { } label: {
+        Button { showingCheckout = true } label: {
             Text("Checkout").montserrat(16, weight: .bold).foregroundStyle(.white)
                 .frame(maxWidth: .infinity, minHeight: 52).background(AppColors.primary).clipShape(RoundedRectangle(cornerRadius: 12))
         }
